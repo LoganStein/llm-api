@@ -29,7 +29,7 @@ class RouteQuery(BaseModel):
         general conversation or a sql_agent who can query the client database""",
     )
 
-llm = ChatOpenAI(model="gpt-4", temperature=0.9)
+llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=1.21, frequency_penalty=0.33, presence_penalty=0.15, top_p=1)
 structured_llm_router = llm.with_structured_output(RouteQuery)
 
 # prompt
@@ -41,10 +41,24 @@ route_prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
+# this chain requires the api call's body to look like this:
+# { "input": {"chat_history": "Human: Hello\r AI: Hi there!\r", "prompt": "How are you?"}}
 @chain
-def custom_chain (question: str) -> str:
+def custom_chain (input):
+    prompt = input["prompt"]
+    chat_history = input["chat_history"]
+    system_prompt = ""
+    final_prompt = ChatPromptTemplate.from_template(
+        """
+        System: {system_prompt}
+        Chat History: {chat_history}
+        Prompt: {prompt}
+        """
+    )
     # call the llms here
-    return llm.invoke(question)
+    response = llm.invoke(final_prompt.format(system_prompt=system_prompt, chat_history=chat_history, prompt=prompt))
+    print(response.content)
+    return response.content
 
 app = FastAPI()
 
