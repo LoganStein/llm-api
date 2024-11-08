@@ -18,7 +18,7 @@ def agents():
         name="planner",
         llm_config=llm_config,
         system_message="""
-        You are an AI planner agent. Your task is to take the user's prompt and come up with a detailed plan to fulfill the request. Once you have created the step by step plan, you will pass it to the executor agent who will carry out the tasks. 
+        You are an AI software architect agent. Your task is to take the user's prompt and come up with a detailed plan for an expert programmer to implement to fulfill the request. Once you have created the step by step plan, you will pass it to the coder agent who will write the code to carry out the tasks. 
         Ensure the plan is clear, actionable, and broken down into manageable steps. 
         Do not try to fulfil the user's request directly. Your only job is to create the plan to fulfil the request. 
         """,
@@ -37,10 +37,9 @@ def agents():
     coder_agent = autogen.AssistantAgent(
         name="coder",
         llm_config=llm_config,
-        # system_message="""
-        # You are an AI coder agent. Your task is to take the user's prompt and write code to fulfil the request.
-        # Ensure the code is clear, concise, and fulfills the user's request.
-        # """
+        system_message="""
+        You are an expert software engineer. You should write code that fulfils the user's request and follows the plan provided by the planner. The code that you write should never require an API key. Only use free and open source data sources.
+        """
 
     )
 
@@ -66,7 +65,7 @@ def run_model(prompt):
         agents=[user, planner_agent, coder_agent], messages=[], max_round=10)
     manager = autogen.GroupChatManager(
         groupchat=groupchat, llm_config=llm_config)
-    chat_results = user.initiate_chat(manager, message=prompt)
+    chat_results = user.initiate_chat(manager, message=prompt, summary_method="reflection_with_llm",)
     return chat_results
 
 

@@ -12,8 +12,9 @@ def main():
         st.session_state.ai_typing = False
 
     # header
-    st.title("Welcome to My Streamlit App")
-    st.write("This is a simple Streamlit boilerplate.")
+    st.title("Welcome to My Agentic AI Assistant")
+    st.write("Enter a prompt that can be accomplished with code and the system will generate the code and run it to provide you an answer.")
+    st.write("ex. what is the current stock price of GOOGL?")
 
     # Display chat messages from history on app rerun
     for message in st.session_state.messages:
@@ -30,10 +31,10 @@ def main():
         response = run_model(prompt)
         # Display assistant response in chat message container
         with st.chat_message("assistant"):
-            st.markdown(response)
+            st.markdown(response.summary)
         # Add assistant response to chat history
         st.session_state.messages.append(
-            {"role": "assistant", "content": response})
+            {"role": "assistant", "content": response.summary})
 
 
 if __name__ == "__main__":
