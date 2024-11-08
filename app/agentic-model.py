@@ -10,64 +10,66 @@ config_list = [
         "api_key": os.getenv("OPENAI_API_KEY")
     }
 ]
+llm_config = {"config_list": config_list, "cache_seed": 32}
+
 
 def agents():
-    writer = autogen.AssistantAgent(
-        name="writer",
-        llm_config=config_list[0],
+    planner_agent = autogen.AssistantAgent(
+        name="planner",
+        llm_config=llm_config,
         system_message="""
-        You are a professional writer, known for
-        your insightful and engaging articles.
-        You transform complex concepts into compelling narratives.
-        Reply "TERMINATE" in the end when everything is done.
+        You are an AI planner agent. Your task is to take the user's prompt and come up with a detailed plan to fulfill the request. Once you have created the step by step plan, you will pass it to the executor agent who will carry out the tasks. 
+        Ensure the plan is clear, actionable, and broken down into manageable steps. 
+        Do not try to fulfil the user's request directly. Your only job is to create the plan to fulfil the request. 
         """,
     )
 
-    research_assistant = autogen.AssistantAgent(
-        name="researcher",
-        llm_config=config_list[0],
+    executor_agent = autogen.AssistantAgent(
+        name="executor",
+        llm_config=llm_config,
+        system_message="""
+        You are an AI assistant. Your task is to go through the plan you recieve from the planner agent and execute the steps in the plan.
+        Do not write and code. Your job is to follow the plan and provide the user with the results of each step.
+        Reply "TERMINATE" in the end when you have completed all the steps in the plan.
+        """
     )
 
-    financial_assistant = autogen.AssistantAgent(
-        name="financial",
-        llm_config=config_list[0],
+    coder_agent = autogen.AssistantAgent(
+        name="coder",
+        llm_config=llm_config,
+        # system_message="""
+        # You are an AI coder agent. Your task is to take the user's prompt and write code to fulfil the request.
+        # Ensure the code is clear, concise, and fulfills the user's request.
+        # """
+
     )
 
     user = autogen.UserProxyAgent(
         name="user",
-        human_input_mode="ALWAYS",
-        is_termination_msg=lambda x: x.get("content", "") and x.get("content", "").rstrip().endswith("TERMINATE"),
-        code_execution_config=False,
+        human_input_mode="TERMINATE",
+        system_message="A human admin.",
+        # is_termination_msg=lambda x: x.get("content", "") and x.get(
+        #     "content", "").rstrip().endswith("TERMINATE"),
+        code_execution_config={
+            "last_n_messages": 2,
+            "work_dir": "groupchat",
+            "use_docker": False,
+        },
     )
 
-    return [user, writer, research_assistant, financial_assistant]
+    return [user, planner_agent, executor_agent, coder_agent]
 
-def run_model(prompt, tasks):
-    user, writer, research_assistant, financial_assistant = agents()
-    chat_results = user.initiate_chats(
-        [
-            {
-                "recipient": financial_assistant,
-                "message": prompt,
-                "clear_history": True,
-                "silent": False,
-                "summary_method": "last_msg",
-                "system_message": "End every message with 'TERMINATE'",
-            },
-            # {
-            #     "recipient": research_assistant,
-            #     "message": financial_tasks[1],
-            #     "summary_method": "reflection_with_llm",
-            # },
-            # {
-            #     "recipient": writer,
-            #     "message": writing_tasks[0],
-            #     "carryover": "I want to include a figure or a table of data in the blogpost.",
-            # },
-        ]
-    )
+
+def run_model(prompt):
+    user, planner_agent, executor_agent, coder_agent = agents()
+    groupchat = autogen.GroupChat(
+        agents=[user, planner_agent, coder_agent], messages=[], max_round=10)
+    manager = autogen.GroupChatManager(
+        groupchat=groupchat, llm_config=llm_config)
+    chat_results = user.initiate_chat(manager, message=prompt)
     return chat_results
 
 
 if __name__ == "__main__":
-   run_model("Can you hear me?", ["can you hear me?"])
+    run_model(
+        "Get the current stock price of NTRS.")
